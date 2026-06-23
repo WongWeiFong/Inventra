@@ -1,0 +1,30 @@
+{
+  "name": "inventra",
+  "version": "1.0.0",
+  "description": "A Household Inventory Management App build with React Native, Node.js + Express",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WongWeiFong/Inventra.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/WongWeiFong/Inventra/issues"
+  },
+  "homepage": "https://github.com/WongWeiFong/Inventra#readme",
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "^3.1.1",
+    "@react-navigation/bottom-tabs": "^7.18.2",
+    "@react-navigation/native": "^7.3.3",
+    "@supabase/supabase-js": "^2.108.2",
+    "react-native-safe-area-context": "^5.8.0",
+    "react-native-screens": "^4.25.2",
+    "ws": "^8.21.0"
+  }
+}

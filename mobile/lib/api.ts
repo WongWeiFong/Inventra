@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { apiRequest } from './backend'
 import { Item, ShoppingListItem, ItemWithStatus, StockStatus, ExpiryStatus } from '../index'
 
 // ============================================================
@@ -34,12 +34,7 @@ function attachStatus(item: Item): ItemWithStatus {
 // ============================================================
 
 export async function getCategories() {
-  const { data, error } = await supabase
-    .from('categories')
-    .select('*')
-    .order('name')
-  if (error) throw error
-  return data
+  return apiRequest('/api/categories')
 }
 
 // ============================================================
@@ -47,12 +42,7 @@ export async function getCategories() {
 // ============================================================
 
 export async function getStorageLocations() {
-  const { data, error } = await supabase
-    .from('storage_locations')
-    .select('*')
-    .order('name')
-  if (error) throw error
-  return data
+  return apiRequest('/api/storage-locations')
 }
 
 // ============================================================
@@ -60,94 +50,47 @@ export async function getStorageLocations() {
 // ============================================================
 
 export async function getAllItems(): Promise<ItemWithStatus[]> {
-  const { data, error } = await supabase
-    .from('items')
-    .select(`
-      *,
-      categories(id, name, icon),
-      storage_locations(id, name, icon)
-    `)
-    .order('name')
-  if (error) throw error
-  return (data as Item[]).map(attachStatus)
+  const data = await apiRequest<Item[]>('/api/items')
+  return data.map(attachStatus)
 }
 
 export async function getItemsByLocation(locationId: string): Promise<ItemWithStatus[]> {
-  const { data, error } = await supabase
-    .from('items')
-    .select(`*, categories(id, name, icon), storage_locations(id, name, icon)`)
-    .eq('storage_location_id', locationId)
-    .order('name')
-  if (error) throw error
-  return (data as Item[]).map(attachStatus)
+  const data = await apiRequest<Item[]>(`/api/items/location/${encodeURIComponent(locationId)}`)
+  return data.map(attachStatus)
 }
 
 export async function getLowStockItems(): Promise<ItemWithStatus[]> {
-  const { data, error } = await supabase
-    .from('items')
-    .select(`*, categories(id, name, icon), storage_locations(id, name, icon)`)
-    .order('name')
-  if (error) throw error
-  return (data as Item[])
-    .map(attachStatus)
-    .filter(i => i.stockStatus === 'low' || i.stockStatus === 'out')
+  const data = await apiRequest<Item[]>('/api/items/low-stock')
+  return data.map(attachStatus)
 }
 
 export async function getExpiringItems(withinDays = 3): Promise<ItemWithStatus[]> {
-  const today = new Date()
-  const future = new Date()
-  future.setDate(today.getDate() + withinDays)
-
-  const { data, error } = await supabase
-    .from('items')
-    .select(`*, categories(id, name, icon), storage_locations(id, name, icon)`)
-    .not('expiry_date', 'is', null)
-    .lte('expiry_date', future.toISOString().split('T')[0])
-    .order('expiry_date')
-  if (error) throw error
-  return (data as Item[]).map(attachStatus)
+  const data = await apiRequest<Item[]>(`/api/items/expiring?withinDays=${withinDays}`)
+  return data.map(attachStatus)
 }
 
 export async function searchItems(query: string): Promise<ItemWithStatus[]> {
-  const { data, error } = await supabase
-    .from('items')
-    .select(`*, categories(id, name, icon), storage_locations(id, name, icon)`)
-    .ilike('name', `%${query}%`)
-    .order('name')
-  if (error) throw error
-  return (data as Item[]).map(attachStatus)
+  const data = await apiRequest<Item[]>(`/api/items/search?q=${encodeURIComponent(query)}`)
+  return data.map(attachStatus)
 }
 
 export async function getItemById(id: string): Promise<ItemWithStatus> {
-  const { data, error } = await supabase
-    .from('items')
-    .select(`*, categories(id, name, icon), storage_locations(id, name, icon)`)
-    .eq('id', id)
-    .single()
-  if (error) throw error
-  return attachStatus(data as Item)
+  const data = await apiRequest<Item>(`/api/items/${id}`)
+  return attachStatus(data)
 }
 
 export async function addItem(item: Partial<Item>) {
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data, error } = await supabase
-    .from('items')
-    .insert({ ...item, user_id: user?.id })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  return apiRequest<Item>('/api/items', {
+    method: 'POST',
+    body: item,
+  })
 }
 
 export async function updateItem(id: string, updates: Partial<Item>) {
-  const { data, error } = await supabase
-    .from('items')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  return apiRequest<Item>(`/api/items/${id}`, {
+    method: 'PATCH',
+    body: updates,
+  })
 }
 
 export async function updateQuantity(id: string, quantity: number) {
@@ -155,11 +98,9 @@ export async function updateQuantity(id: string, quantity: number) {
 }
 
 export async function deleteItem(id: string) {
-  const { error } = await supabase
-    .from('items')
-    .delete()
-    .eq('id', id)
-  if (error) throw error
+  await apiRequest<void>(`/api/items/${id}`, {
+    method: 'DELETE',
+  })
 }
 
 // ============================================================
@@ -167,74 +108,38 @@ export async function deleteItem(id: string) {
 // ============================================================
 
 export async function getShoppingList(): Promise<ShoppingListItem[]> {
-  const { data, error } = await supabase
-    .from('shopping_list')
-    .select(`*, categories(id, name, icon)`)
-    .order('is_checked')
-    .order('created_at')
-  if (error) throw error
-  return data as ShoppingListItem[]
+  return apiRequest<ShoppingListItem[]>('/api/shopping-list')
 }
 
 export async function addToShoppingList(item: Partial<ShoppingListItem>) {
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data, error } = await supabase
-    .from('shopping_list')
-    .insert({ ...item, user_id: user?.id })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  return apiRequest<ShoppingListItem>('/api/shopping-list', {
+    method: 'POST',
+    body: item,
+  })
 }
 
 export async function toggleShoppingItem(id: string, is_checked: boolean) {
-  const { data, error } = await supabase
-    .from('shopping_list')
-    .update({ is_checked })
-    .eq('id', id)
-    .select()
-    .single()
-  if (error) throw error
-  return data
+  return apiRequest<ShoppingListItem>(`/api/shopping-list/${id}`, {
+    method: 'PATCH',
+    body: { is_checked },
+  })
 }
 
 export async function deleteShoppingItem(id: string) {
-  const { error } = await supabase
-    .from('shopping_list')
-    .delete()
-    .eq('id', id)
-  if (error) throw error
+  await apiRequest<void>(`/api/shopping-list/${id}`, {
+    method: 'DELETE',
+  })
 }
 
 export async function clearCheckedItems() {
-  const { error } = await supabase
-    .from('shopping_list')
-    .delete()
-    .eq('is_checked', true)
-  if (error) throw error
+  await apiRequest<void>('/api/shopping-list/checked', {
+    method: 'DELETE',
+  })
 }
 
 // Auto-generate shopping list from low stock items
 export async function generateShoppingList() {
-  const lowItems = await getLowStockItems()
-  if (lowItems.length === 0) return []
-
-  const { data: { user } } = await supabase.auth.getUser()
-
-  const entries = lowItems.map(item => ({
-    user_id: user?.id,
-    item_name: item.name,
-    quantity: item.low_stock_threshold,
-    unit: item.unit,
-    category_id: item.category_id,
-    is_auto_generated: true,
-    is_checked: false,
-  }))
-
-  const { data, error } = await supabase
-    .from('shopping_list')
-    .insert(entries)
-    .select()
-  if (error) throw error
-  return data
+  return apiRequest<ShoppingListItem[]>('/api/shopping-list/generate', {
+    method: 'POST',
+  })
 }

@@ -17,10 +17,10 @@ import { ItemWithStatus } from '../types'
 
 const TABS = [
   { id: 'all',         label: 'All',      icon: '🏠' },
-  { id: 'Pantry',      label: 'Pantry',   icon: '🗄️' },
   { id: 'Refrigerator',label: 'Fridge',   icon: '🧊' },
   { id: 'Freezer',     label: 'Freezer',  icon: '❄️' },
-  { id: 'Bathroom',    label: 'Bathroom', icon: '🚿' },
+  { id: 'Bathroom',    label: '1st Floor Bathroom', icon: '🚿' },
+  { id: 'Cabinet',    label: '2nd Floor Cabinet', icon: '🚪' },
 ]
 
 export default function HomeScreen() {

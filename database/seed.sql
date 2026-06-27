@@ -8,8 +8,8 @@ insert into categories (name, icon) values
 on conflict (name) do nothing;
 
 insert into storage_locations (name, icon) values
-  ('Pantry', '🍞'),
   ('Refrigerator', '🧊'),
   ('Freezer', '❄️'),
-  ('Bathroom', '🚿')
+  ('1st Floor Bathroom', '🚿'),
+  ('2nd Floor Cabinet', '🚪')
 on conflict (name) do nothing;

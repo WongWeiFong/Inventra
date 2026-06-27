@@ -29,10 +29,10 @@ The goal is to reduce food waste, prevent overbuying, and improve household inve
 
 ### Storage Management
 
-- Pantry
 - Refrigerator
 - Freezer
-- Bathroom
+- 1st Floor Bathroom
+- 2nd Floor Cabinet
 
 ### Expiry Tracking
 

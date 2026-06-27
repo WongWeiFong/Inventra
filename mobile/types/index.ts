@@ -1,3 +1,7 @@
+// ============================================================
+// mobile/types/index.ts
+// ============================================================
+
 export interface Category {
   id: string
   name: string
@@ -58,9 +62,9 @@ export type RootTabParamList = {
 
 export type RootStackParamList = {
   Main: undefined
-  ItemDetail: { itemId: string }
-  EditItem: { itemId: string }
   AddItem: undefined
+  EditItem: { itemId: string }
+  ItemDetail: { itemId: string }
   Login: undefined
   Signup: undefined
 }

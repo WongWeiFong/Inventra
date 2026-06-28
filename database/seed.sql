@@ -11,5 +11,6 @@ insert into storage_locations (name, icon) values
   ('Refrigerator', '🧊'),
   ('Freezer', '❄️'),
   ('1st Floor Bathroom', '🚿'),
+  ('1st Floor Cabinet', '🗄️'),
   ('2nd Floor Cabinet', '🚪')
 on conflict (name) do nothing;

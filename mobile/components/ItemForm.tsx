@@ -1,22 +1,21 @@
 // ============================================================
 // mobile/components/ItemForm.tsx
-// Shared form used by both AddItemScreen and EditItemScreen.
-// Includes calendar date picker for expiry date.
+// Shared form — category uses dropdown, location stays as grid
 // ============================================================
 import React, { useState, useEffect } from 'react'
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, Modal, ActivityIndicator,
+  ScrollView, Modal, FlatList, ActivityIndicator,
 } from 'react-native'
 import { getCategories, getStorageLocations } from '../lib/api'
-import { Category, StorageLocation, Item } from '../types'
+import { Category, StorageLocation } from '../types'
 
 export interface ItemFormValues {
   name: string
   quantity: string
   unit: string
   threshold: string
-  expiryDate: string   // ISO string YYYY-MM-DD or ''
+  expiryDate: string
   notes: string
   categoryId: string | null
   locationId: string | null
@@ -30,7 +29,7 @@ interface Props {
   title: string
 }
 
-// ── Mini calendar picker ─────────────────────────────────────
+// ── Calendar picker ──────────────────────────────────────────
 
 function CalendarPicker({
   value, onChange, onClose,
@@ -42,7 +41,7 @@ function CalendarPicker({
   const today = new Date()
   const initial = value ? new Date(value) : today
   const [year, setYear]   = useState(initial.getFullYear())
-  const [month, setMonth] = useState(initial.getMonth()) // 0-indexed
+  const [month, setMonth] = useState(initial.getMonth())
   const [selected, setSelected] = useState(value)
 
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
@@ -90,12 +89,8 @@ function CalendarPicker({
 
       {/* Day headers */}
       <View style={cal.dayHeaders}>
-        {DAYS.map(d => (
-          <Text key={d} style={cal.dayHeader}>{d}</Text>
-        ))}
+        {DAYS.map(d => <Text key={d} style={cal.dayHeader}>{d}</Text>)}
       </View>
-
-      {/* Date grid */}
       <View style={cal.grid}>
         {grid.map((day, i) => {
           if (!day) return <View key={i} style={cal.cell} />
@@ -105,18 +100,12 @@ function CalendarPicker({
           return (
             <TouchableOpacity
               key={i}
-              style={[
-                cal.cell,
-                isSelected && cal.cellSelected,
-                isToday && !isSelected && cal.cellToday,
-              ]}
+              style={[cal.cell, isSelected && cal.cellSel, isToday && !isSelected && cal.cellToday]}
               onPress={() => setSelected(iso)}
             >
-              <Text style={[
-                cal.cellText,
-                isSelected && cal.cellTextSelected,
-                isToday && !isSelected && cal.cellTextToday,
-              ]}>{day}</Text>
+              <Text style={[cal.cellText, isSelected && cal.cellTextSel, isToday && !isSelected && cal.cellTextToday]}>
+                {day}
+              </Text>
             </TouchableOpacity>
           )
         })}
@@ -132,12 +121,89 @@ function CalendarPicker({
           style={[cal.btnConfirm, !selected && cal.btnDisabled]}
           disabled={!selected}
         >
-          <Text style={cal.btnConfirmText}>
-            {selected ? `Select ${selected}` : 'Pick a date'}
-          </Text>
+          <Text style={cal.btnConfirmText}>{selected ? `Select ${selected}` : 'Pick a date'}</Text>
         </TouchableOpacity>
       </View>
     </View>
+  )
+}
+
+// ── Category dropdown ────────────────────────────────────────
+
+function CategoryDropdown({
+  categories,
+  selectedId,
+  onSelect,
+}: {
+  categories: Category[]
+  selectedId: string | null
+  onSelect: (id: string | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const selected = categories.find(c => c.id === selectedId)
+
+  return (
+    <>
+      {/* Trigger button */}
+      <TouchableOpacity style={dd.trigger} onPress={() => setOpen(true)}>
+        <Text style={[dd.triggerText, !selected && dd.placeholder]}>
+          {selected ? `${selected.icon}  ${selected.name}` : 'Select a category'}
+        </Text>
+        <Text style={dd.chevron}>▾</Text>
+      </TouchableOpacity>
+
+      {/* Dropdown modal */}
+      <Modal visible={open} transparent animationType="fade">
+        <TouchableOpacity style={dd.overlay} onPress={() => setOpen(false)} activeOpacity={1}>
+          <View style={dd.sheet}>
+            {/* Header */}
+            <View style={dd.sheetHeader}>
+              <Text style={dd.sheetTitle}>Select category</Text>
+              <TouchableOpacity onPress={() => setOpen(false)}>
+                <Text style={dd.sheetClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Clear option */}
+            <TouchableOpacity
+              style={[dd.option, !selectedId && dd.optionActive]}
+              onPress={() => { onSelect(null); setOpen(false) }}
+            >
+              <Text style={dd.optionIcon}>📦</Text>
+              <Text style={[dd.optionLabel, !selectedId && dd.optionLabelActive]}>
+                No category
+              </Text>
+              {!selectedId && <Text style={dd.optionCheck}>✓</Text>}
+            </TouchableOpacity>
+
+            {/* Divider */}
+            <View style={dd.divider} />
+
+            {/* Category list */}
+            <FlatList
+              data={categories}
+              keyExtractor={c => c.id}
+              style={dd.list}
+              renderItem={({ item: c }) => {
+                const isActive = c.id === selectedId
+                return (
+                  <TouchableOpacity
+                    style={[dd.option, isActive && dd.optionActive]}
+                    onPress={() => { onSelect(c.id); setOpen(false) }}
+                  >
+                    <Text style={dd.optionIcon}>{c.icon}</Text>
+                    <Text style={[dd.optionLabel, isActive && dd.optionLabelActive]}>
+                      {c.name}
+                    </Text>
+                    {isActive && <Text style={dd.optionCheck}>✓</Text>}
+                  </TouchableOpacity>
+                )
+              }}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </>
   )
 }
 
@@ -145,8 +211,8 @@ function CalendarPicker({
 
 export default function ItemForm({ initial, onSave, onCancel, saving, title }: Props) {
   const [categories, setCategories] = useState<Category[]>([])
-  const [locations, setLocations]   = useState<StorageLocation[]>([])
-  const [showCal, setShowCal]       = useState(false)
+  const [locations,  setLocations]  = useState<StorageLocation[]>([])
+  const [showCal,    setShowCal]    = useState(false)
 
   const [name,       setName]       = useState(initial?.name       ?? '')
   const [quantity,   setQuantity]   = useState(initial?.quantity   ?? '1')
@@ -168,7 +234,8 @@ export default function ItemForm({ initial, onSave, onCancel, saving, title }: P
 
   return (
     <ScrollView style={f.container} contentContainerStyle={f.content} keyboardShouldPersistTaps="handled">
-      {/* Header */}
+
+      {/* ── Header ── */}
       <View style={f.header}>
         <TouchableOpacity onPress={onCancel}>
           <Text style={f.cancel}>Cancel</Text>
@@ -181,39 +248,48 @@ export default function ItemForm({ initial, onSave, onCancel, saving, title }: P
         </TouchableOpacity>
       </View>
 
-      {/* Name */}
+      {/* ── Name ── */}
       <Text style={f.label}>Item name *</Text>
       <TextInput
-        style={f.input} placeholder="e.g. Chicken breast"
-        value={name} onChangeText={setName}
+        style={f.input}
+        placeholder="e.g. Chicken breast"
+        value={name}
+        onChangeText={setName}
       />
 
-      {/* Quantity + unit */}
+      {/* ── Quantity + unit ── */}
       <View style={f.row}>
         <View style={f.half}>
           <Text style={f.label}>Quantity</Text>
           <TextInput
-            style={f.input} keyboardType="numeric"
-            value={quantity} onChangeText={setQuantity}
+            style={f.input}
+            keyboardType="numeric"
+            value={quantity}
+            onChangeText={setQuantity}
           />
         </View>
         <View style={f.half}>
           <Text style={f.label}>Unit</Text>
           <TextInput
-            style={f.input} placeholder="kg / pcs / ml"
-            value={unit} onChangeText={setUnit}
+            style={f.input}
+            placeholder="kg / pcs / ml"
+            value={unit}
+            onChangeText={setUnit}
           />
         </View>
       </View>
 
-      {/* Low stock threshold */}
+      {/* ── Low stock threshold ── */}
       <Text style={f.label}>Alert me when below</Text>
       <TextInput
-        style={f.input} keyboardType="numeric"
-        placeholder="e.g. 2" value={threshold} onChangeText={setThreshold}
+        style={f.input}
+        keyboardType="numeric"
+        placeholder="e.g. 2"
+        value={threshold}
+        onChangeText={setThreshold}
       />
 
-      {/* Expiry date — calendar picker */}
+      {/* ── Expiry date — calendar ── */}
       <Text style={f.label}>Expiry date</Text>
       <TouchableOpacity style={f.datePicker} onPress={() => setShowCal(true)}>
         <Text style={[f.dateText, !expiryDate && f.datePlaceholder]}>
@@ -231,7 +307,7 @@ export default function ItemForm({ initial, onSave, onCancel, saving, title }: P
 
       {/* Calendar modal */}
       <Modal visible={showCal} transparent animationType="fade">
-        <View style={f.modalOverlay}>
+        <View style={f.calOverlay}>
           <CalendarPicker
             value={expiryDate}
             onChange={setExpiryDate}
@@ -240,22 +316,17 @@ export default function ItemForm({ initial, onSave, onCancel, saving, title }: P
         </View>
       </Modal>
 
-      {/* Category */}
+      {/* ── Category dropdown ── */}
       <Text style={f.label}>Category</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={f.chipRow}>
-        {categories.map(c => (
-          <TouchableOpacity
-            key={c.id}
-            style={[f.chip, categoryId === c.id && f.chipActive]}
-            onPress={() => setCategoryId(categoryId === c.id ? null : c.id)}
-          >
-            <Text style={f.chipIcon}>{c.icon}</Text>
-            <Text style={[f.chipLabel, categoryId === c.id && f.chipLabelActive]}>{c.name}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={f.fieldWrap}>
+        <CategoryDropdown
+          categories={categories}
+          selectedId={categoryId}
+          onSelect={setCategoryId}
+        />
+      </View>
 
-      {/* Storage location */}
+      {/* ── Storage location grid (unchanged) ── */}
       <Text style={f.label}>Storage location</Text>
       <View style={f.locGrid}>
         {locations.map(l => (
@@ -265,17 +336,24 @@ export default function ItemForm({ initial, onSave, onCancel, saving, title }: P
             onPress={() => setLocationId(locationId === l.id ? null : l.id)}
           >
             <Text style={f.locIcon}>{l.icon}</Text>
-            <Text style={[f.locLabel, locationId === l.id && f.locLabelActive]}>{l.name}</Text>
+            <Text style={[f.locLabel, locationId === l.id && f.locLabelActive]}>
+              {l.name}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Notes */}
+      {/* ── Notes ── */}
       <Text style={f.label}>Notes</Text>
       <TextInput
-        style={[f.input, f.textarea]} multiline numberOfLines={3}
-        placeholder="Any extra notes..." value={notes} onChangeText={setNotes}
+        style={[f.input, f.textarea]}
+        multiline
+        numberOfLines={3}
+        placeholder="Any extra notes..."
+        value={notes}
+        onChangeText={setNotes}
       />
+
     </ScrollView>
   )
 }
@@ -283,35 +361,68 @@ export default function ItemForm({ initial, onSave, onCancel, saving, title }: P
 // ── Calendar styles ──────────────────────────────────────────
 const cal = StyleSheet.create({
   container: {
-    backgroundColor: '#fff', borderRadius: 20, padding: 20,
-    width: 320, shadowColor: '#000', shadowOpacity: 0.15,
-    shadowRadius: 20, elevation: 10,
+    backgroundColor: '#fff', borderRadius: 20, padding: 20, width: 320,
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 20, elevation: 12,
   },
   nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   navBtn: { padding: 8 },
-  navArrow: { fontSize: 22, color: '#4A42B0', fontWeight: '600' },
-  monthLabel: { fontSize: 16, fontWeight: '600', color: '#1A1A1A' },
-  dayHeaders: { flexDirection: 'row', marginBottom: 8 },
-  dayHeader: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: '#888' },
+  navArrow: { fontSize: 24, color: '#4A42B0', fontWeight: '600' },
+  monthLabel: { fontSize: 16, fontWeight: '700', color: '#1A1A1A' },
+  dayHeaders: { flexDirection: 'row', marginBottom: 6 },
+  dayHeader: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600', color: '#999' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: '14.28%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 2 },
-  cellSelected: { backgroundColor: '#4A42B0', borderRadius: 999 },
+  cellSel:   { backgroundColor: '#4A42B0', borderRadius: 999 },
   cellToday: { backgroundColor: '#EEEDFE', borderRadius: 999 },
-  cellText: { fontSize: 14, color: '#1A1A1A' },
-  cellTextSelected: { color: '#fff', fontWeight: '700' },
+  cellText:  { fontSize: 14, color: '#1A1A1A' },
+  cellTextSel:   { color: '#fff', fontWeight: '700' },
   cellTextToday: { color: '#4A42B0', fontWeight: '700' },
   actions: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  btnCancel: {
-    flex: 1, paddingVertical: 12, borderRadius: 12,
-    backgroundColor: '#F4F4F4', alignItems: 'center',
-  },
+  btnCancel:  { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#F4F4F4', alignItems: 'center' },
   btnCancelText: { fontSize: 14, color: '#555', fontWeight: '500' },
-  btnConfirm: {
-    flex: 2, paddingVertical: 12, borderRadius: 12,
-    backgroundColor: '#4A42B0', alignItems: 'center',
-  },
+  btnConfirm: { flex: 2, paddingVertical: 12, borderRadius: 12, backgroundColor: '#4A42B0', alignItems: 'center' },
   btnDisabled: { backgroundColor: '#C0BDEA' },
   btnConfirmText: { fontSize: 14, color: '#fff', fontWeight: '600' },
+})
+
+// ── Dropdown styles ──────────────────────────────────────────
+const dd = StyleSheet.create({
+  trigger: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 14,
+    borderWidth: 0.5, borderColor: '#E4E4E4',
+  },
+  triggerText: { fontSize: 15, color: '#1A1A1A', flex: 1 },
+  placeholder: { color: '#AAA' },
+  chevron: { fontSize: 16, color: '#888', marginLeft: 8 },
+  overlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',            // slides up from bottom
+  },
+  sheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    maxHeight: '75%',
+    paddingBottom: 32,
+  },
+  sheetHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: 20, paddingVertical: 16,
+    borderBottomWidth: 0.5, borderBottomColor: '#F0F0F0',
+  },
+  sheetTitle: { fontSize: 17, fontWeight: '700', color: '#1A1A1A' },
+  sheetClose: { fontSize: 18, color: '#AAA', padding: 4 },
+  divider: { height: 0.5, backgroundColor: '#F0F0F0', marginVertical: 4 },
+  list: { flexGrow: 0 },
+  option: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    paddingHorizontal: 20, paddingVertical: 14,
+  },
+  optionActive: { backgroundColor: '#F4F3FF' },
+  optionIcon: { fontSize: 22, width: 28, textAlign: 'center' },
+  optionLabel: { fontSize: 15, color: '#1A1A1A', flex: 1 },
+  optionLabelActive: { color: '#4A42B0', fontWeight: '600' },
+  optionCheck: { fontSize: 16, color: '#4A42B0', fontWeight: '700' },
 })
 
 // ── Form styles ──────────────────────────────────────────────
@@ -325,7 +436,7 @@ const f = StyleSheet.create({
   },
   headerTitle: { fontSize: 17, fontWeight: '600', color: '#1A1A1A' },
   cancel: { fontSize: 16, color: '#888' },
-  save: { fontSize: 16, color: '#4A42B0', fontWeight: '600' },
+  save:   { fontSize: 16, color: '#4A42B0', fontWeight: '600' },
   label: { fontSize: 13, fontWeight: '500', color: '#555', marginLeft: 20, marginBottom: 6 },
   input: {
     backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
@@ -333,30 +444,18 @@ const f = StyleSheet.create({
     marginHorizontal: 16, marginBottom: 16,
   },
   textarea: { minHeight: 80, textAlignVertical: 'top' },
-  row: { flexDirection: 'row', paddingHorizontal: 16, gap: 10 },
+  row:  { flexDirection: 'row', paddingHorizontal: 16, gap: 10 },
   half: { flex: 1 },
   datePicker: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 14,
     borderWidth: 0.5, borderColor: '#E4E4E4', marginHorizontal: 16, marginBottom: 16,
   },
-  dateText: { fontSize: 15, color: '#1A1A1A' },
+  dateText:        { fontSize: 15, color: '#1A1A1A' },
   datePlaceholder: { color: '#AAA' },
-  dateClear: { fontSize: 14, color: '#AAA', paddingLeft: 8 },
-  modalOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  chipRow: { paddingHorizontal: 16, marginBottom: 16, flexGrow: 0 },
-  chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, marginRight: 8,
-    backgroundColor: '#fff', borderWidth: 0.5, borderColor: '#E4E4E4',
-  },
-  chipActive: { backgroundColor: '#4A42B0', borderColor: '#4A42B0' },
-  chipIcon: { fontSize: 14 },
-  chipLabel: { fontSize: 13, color: '#555' },
-  chipLabelActive: { color: '#fff' },
+  dateClear:       { fontSize: 14, color: '#AAA', paddingLeft: 8 },
+  calOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  fieldWrap: { marginHorizontal: 16, marginBottom: 16 },
   locGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, gap: 10, marginBottom: 16 },
   locBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -364,7 +463,7 @@ const f = StyleSheet.create({
     backgroundColor: '#fff', borderWidth: 0.5, borderColor: '#E4E4E4',
   },
   locBtnActive: { backgroundColor: '#4A42B0', borderColor: '#4A42B0' },
-  locIcon: { fontSize: 16 },
+  locIcon:  { fontSize: 16 },
   locLabel: { fontSize: 13, color: '#555', fontWeight: '500' },
   locLabelActive: { color: '#fff' },
 })

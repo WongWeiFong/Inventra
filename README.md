@@ -32,6 +32,7 @@ The goal is to reduce food waste, prevent overbuying, and improve household inve
 - Refrigerator
 - Freezer
 - 1st Floor Bathroom
+- 1st Floor Cabinet
 - 2nd Floor Cabinet
 
 ### Expiry Tracking
@@ -82,3 +83,7 @@ The goal is to reduce food waste, prevent overbuying, and improve household inve
 - `DELETE /api/shopping-list/:id`
 - `DELETE /api/shopping-list/checked`
 - `POST /api/shopping-list/generate`
+
+
+cd mobile
+npx expo start

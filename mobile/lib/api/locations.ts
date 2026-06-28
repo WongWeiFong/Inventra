@@ -1,6 +1,6 @@
 // ============================================================
 // mobile/lib/api/locations.ts
-// Fetch storage locations (Fridge, Freezer, 1st Floor Bathroom, 2nd Floor Cabinet)
+// Fetch storage locations (Fridge, Freezer, 1st Floor Bathroom, 1st Floor Cabinet, 2nd Floor Cabinet)
 // ============================================================
 import { supabase } from '../supabase'
 import { StorageLocation } from '../../types'

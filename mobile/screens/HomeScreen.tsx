@@ -20,6 +20,7 @@ const TABS = [
   { id: 'Refrigerator',label: 'Fridge',   icon: '🧊' },
   { id: 'Freezer',     label: 'Freezer',  icon: '❄️' },
   { id: 'Bathroom',    label: '1st Floor Bathroom', icon: '🚿' },
+  { id: 'Cabinet1',    label: '1st Floor Cabinet', icon: '🗄️' },
   { id: 'Cabinet',    label: '2nd Floor Cabinet', icon: '🚪' },
 ]
 

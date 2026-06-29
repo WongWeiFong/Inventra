@@ -65,6 +65,7 @@ export type RootStackParamList = {
   AddItem: undefined
   EditItem: { itemId: string }
   ItemDetail: { itemId: string }
+  PriceCompare: { query?: string }
   Login: undefined
   Signup: undefined
 }

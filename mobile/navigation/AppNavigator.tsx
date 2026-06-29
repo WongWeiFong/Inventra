@@ -15,6 +15,7 @@ import ProfileScreen    from '../screens/ProfileScreen'
 import AddItemScreen    from '../screens/AddItemScreen'
 import EditItemScreen   from '../screens/EditItemScreen'
 import ItemDetailScreen from '../screens/ItemDetailScreen'
+import PriceCompareScreen from '../screens/PriceCompareScreen'
 
 import { RootTabParamList, RootStackParamList } from '../types'
 
@@ -83,6 +84,7 @@ export default function AppNavigator() {
         <Stack.Screen name="AddItem"    component={AddItemScreen} />
         <Stack.Screen name="EditItem"   component={EditItemScreen} />
         <Stack.Screen name="ItemDetail" component={ItemDetailScreen} />
+        <Stack.Screen name="PriceCompare" component={PriceCompareScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   )

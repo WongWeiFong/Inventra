@@ -1,28 +1,33 @@
 // ============================================================
 // mobile/screens/ShoppingScreen.tsx
-// Shopping list — manual + auto-generated from low stock
+// Shopping list with per-item cheapest price hints (PriceTag)
 // ============================================================
 import React, { useState } from 'react'
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   TextInput, Alert, ActivityIndicator,
 } from 'react-native'
+import { useNavigation } from '@react-navigation/native'
 import { useShopping } from '../hooks/useShopping'
 import {
   toggleShoppingItem, deleteShoppingItem,
   clearCheckedItems, addShoppingItem, generateShoppingList,
 } from '../lib/api'
 import EmptyState from '../components/EmptyState'
+import PriceTag   from '../components/PriceTag'
 import { ShoppingListItem } from '../types'
 
 export default function ShoppingScreen() {
+  const nav = useNavigation<any>()
   const { unchecked, checked, loading, refetch } = useShopping()
-  const [newItem, setNewItem] = useState('')
+  const [newItem,    setNewItem]    = useState('')
   const [generating, setGenerating] = useState(false)
 
   async function handleAdd() {
     if (!newItem.trim()) return
-    await addShoppingItem({ item_name: newItem.trim(), quantity: 1, unit: null, category_id: null })
+    await addShoppingItem({
+      item_name: newItem.trim(), quantity: 1, unit: null, category_id: null,
+    })
     setNewItem('')
     refetch()
   }
@@ -54,76 +59,83 @@ export default function ShoppingScreen() {
   }
 
   const renderItem = ({ item }: { item: ShoppingListItem }) => (
-    <TouchableOpacity style={s.item} onPress={() => handleToggle(item)} activeOpacity={0.7}>
+    <TouchableOpacity style={s.item} onPress={() => handleToggle(item)} activeOpacity={0.75}>
       <View style={[s.check, item.is_checked && s.checkDone]}>
         {item.is_checked && <Text style={s.checkMark}>✓</Text>}
       </View>
+
       <View style={s.itemInfo}>
-        <Text style={[s.itemName, item.is_checked && s.strikethrough]}>{item.item_name}</Text>
-        {item.quantity > 1 || item.unit
-          ? <Text style={s.itemMeta}>{item.quantity}{item.unit ? ' ' + item.unit : ''}</Text>
-          : null}
-        {item.is_auto_generated && <Text style={s.autoBadge}>Auto-generated</Text>}
+        <Text style={[s.itemName, item.is_checked && s.strikethrough]}>
+          {item.item_name}
+        </Text>
+        {(item.quantity > 1 || item.unit) && (
+          <Text style={s.itemMeta}>{item.quantity}{item.unit ? ' ' + item.unit : ''}</Text>
+        )}
+        {item.is_auto_generated && (
+          <Text style={s.autoBadge}>Auto-generated</Text>
+        )}
+        {!item.is_checked && <PriceTag itemName={item.item_name} />}
       </View>
+
       <TouchableOpacity onPress={() => handleDelete(item)} style={s.deleteBtn}>
         <Text style={s.deleteX}>✕</Text>
       </TouchableOpacity>
     </TouchableOpacity>
   )
 
-  const allItems = [...unchecked, ...checked]
-
   return (
     <View style={s.container}>
       <View style={s.header}>
         <Text style={s.title}>Shopping List</Text>
         <View style={s.headerActions}>
+          <TouchableOpacity style={s.compareBtn} onPress={() => nav.navigate('PriceCompare', {})}>
+            <Text style={s.compareBtnText}>💰 Prices</Text>
+          </TouchableOpacity>
           {checked.length > 0 && (
             <TouchableOpacity onPress={handleClearChecked} style={s.clearBtn}>
-              <Text style={s.clearBtnText}>Clear checked</Text>
+              <Text style={s.clearBtnText}>Clear</Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* Auto-generate button */}
       <TouchableOpacity style={s.generateBtn} onPress={handleGenerate} disabled={generating}>
         {generating
           ? <ActivityIndicator size="small" color="#4A42B0" />
           : <Text style={s.generateText}>✨ Generate from low-stock items</Text>}
       </TouchableOpacity>
 
-      {/* Quick add bar */}
       <View style={s.addRow}>
         <TextInput
-          style={s.addInput}
-          placeholder="Add item..."
-          placeholderTextColor="#AAA"
-          value={newItem}
-          onChangeText={setNewItem}
-          onSubmitEditing={handleAdd}
-          returnKeyType="done"
+          style={s.addInput} placeholder="Add item..." placeholderTextColor="#AAA"
+          value={newItem} onChangeText={setNewItem}
+          onSubmitEditing={handleAdd} returnKeyType="done"
         />
         <TouchableOpacity style={s.addBtn} onPress={handleAdd}>
           <Text style={s.addBtnText}>Add</Text>
         </TouchableOpacity>
       </View>
 
+      <View style={s.legend}>
+        <View style={[s.legendDot, { backgroundColor: '#EAF3DE' }]} />
+        <Text style={s.legendText}>Cheapest store</Text>
+        <View style={[s.legendDot, { backgroundColor: '#FBEAF0', marginLeft: 10 }]} />
+        <Text style={s.legendText}>On promotion</Text>
+      </View>
+
       {loading
         ? <ActivityIndicator style={{ marginTop: 40 }} />
         : <FlatList
-            data={allItems}
+            data={[...unchecked, ...checked]}
             keyExtractor={i => i.id}
             contentContainerStyle={s.list}
             renderItem={renderItem}
             ListEmptyComponent={
-              <EmptyState
-                icon="🛒"
-                title="List is empty"
-                subtitle="Add items manually or generate from low-stock inventory"
-              />
+              <EmptyState icon="🛒" title="List is empty"
+                subtitle="Add items manually or generate from low-stock inventory" />
             }
-          />}
+          />
+      }
     </View>
   )
 }
@@ -136,15 +148,14 @@ const s = StyleSheet.create({
     backgroundColor: '#fff', borderBottomWidth: 0.5, borderBottomColor: '#E8E8E8',
   },
   title: { fontSize: 24, fontWeight: '700', color: '#1A1A1A' },
-  headerActions: { flexDirection: 'row', gap: 10 },
+  headerActions: { flexDirection: 'row', gap: 8 },
+  compareBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#EEEDFE', borderRadius: 12 },
+  compareBtnText: { fontSize: 13, color: '#4A42B0', fontWeight: '600' },
   clearBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#FCEBEB', borderRadius: 12 },
   clearBtnText: { fontSize: 13, color: '#A32D2D', fontWeight: '500' },
-  generateBtn: {
-    margin: 16, padding: 14, backgroundColor: '#EEEDFE',
-    borderRadius: 14, alignItems: 'center',
-  },
+  generateBtn: { margin: 16, padding: 14, backgroundColor: '#EEEDFE', borderRadius: 14, alignItems: 'center' },
   generateText: { color: '#4A42B0', fontWeight: '600', fontSize: 14 },
-  addRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 10, gap: 10 },
+  addRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, gap: 10 },
   addInput: {
     flex: 1, backgroundColor: '#fff', borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 10, fontSize: 15,
@@ -152,15 +163,19 @@ const s = StyleSheet.create({
   },
   addBtn: { backgroundColor: '#4A42B0', paddingHorizontal: 18, borderRadius: 12, justifyContent: 'center' },
   addBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  legend: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendText: { fontSize: 11, color: '#AAA', marginLeft: 4 },
   list: { paddingHorizontal: 16, paddingBottom: 100 },
   item: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 8,
-    borderWidth: 0.5, borderColor: '#E4E4E4',
+    flexDirection: 'row', alignItems: 'flex-start', gap: 12,
+    backgroundColor: '#fff', borderRadius: 14, padding: 14,
+    marginBottom: 8, borderWidth: 0.5, borderColor: '#E4E4E4',
   },
   check: {
-    width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#C0C0C0',
-    alignItems: 'center', justifyContent: 'center',
+    width: 24, height: 24, borderRadius: 12, borderWidth: 2,
+    borderColor: '#C0C0C0', alignItems: 'center', justifyContent: 'center',
+    marginTop: 1, flexShrink: 0,
   },
   checkDone: { backgroundColor: '#4A42B0', borderColor: '#4A42B0' },
   checkMark: { color: '#fff', fontSize: 13, fontWeight: '700' },

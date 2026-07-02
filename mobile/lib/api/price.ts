@@ -5,9 +5,7 @@
 //   EXPO_PUBLIC_PRICE_API_URL=https://your-app.onrender.com
 // ============================================================
 
-const BASE_URL = process.env.EXPO_PUBLIC_PRICE_API_URL //render
-
-// ── Types ────────────────────────────────────────────────────
+const BASE_URL = process.env.EXPO_PUBLIC_PRICE_API_URL
 
 export interface StorePrice {
   store: string
@@ -52,7 +50,25 @@ export interface Promotion {
   savings: string
 }
 
-// ── Helpers ──────────────────────────────────────────────────
+export interface StoreInfo {
+  store_name: string
+  display_name: string
+  product_count: number
+  last_scraped: string
+  image_url: string | null
+  banner_color: string | null
+  website_url: string | null
+  description: string | null
+}
+
+export interface BrowseResult {
+  store: string
+  page: number
+  page_size: number
+  total_count: number
+  has_more: boolean
+  results: PriceResult[]
+}
 
 async function apiFetch(path: string) {
   if (!BASE_URL) throw new Error('EXPO_PUBLIC_PRICE_API_URL is not set in .env')
@@ -61,34 +77,22 @@ async function apiFetch(path: string) {
   return res.json()
 }
 
-// ── API calls ────────────────────────────────────────────────
-
-// Search products across all stores
 export async function searchPrices(query: string, limit = 20): Promise<PriceResult[]> {
-  const data = await apiFetch(
-    `/api/search?q=${encodeURIComponent(query)}&limit=${limit}`
-  )
+  const data = await apiFetch(`/api/search?q=${encodeURIComponent(query)}&limit=${limit}`)
   return data.results ?? []
 }
 
-// Compare prices across stores — grouped by product
-// This is the main call used by PriceCompareScreen
 export async function comparePrices(query: string): Promise<CompareProduct[]> {
-  const data = await apiFetch(
-    `/api/compare?q=${encodeURIComponent(query)}`
-  )
+  const data = await apiFetch(`/api/compare?q=${encodeURIComponent(query)}`)
   return data.products ?? []
 }
 
-// Quick single-item price check — used by shopping list
-// Returns cheapest store + price for a given item name
 export async function getCheapestPrice(
   itemName: string
 ): Promise<{ store: string; price: number; is_promotion: boolean } | null> {
   try {
     const products = await comparePrices(itemName)
     if (!products.length) return null
-    // First result is already sorted cheapest first
     const top = products[0]
     return {
       store:        top.cheapest_store,
@@ -96,18 +100,30 @@ export async function getCheapestPrice(
       is_promotion: top.stores[0]?.is_promotion ?? false,
     }
   } catch {
-    return null  // silently fail — price hints are optional
+    return null
   }
 }
 
-// All current promotions
 export async function getPromotions(store?: string): Promise<Promotion[]> {
   const storeParam = store ? `&store=${encodeURIComponent(store)}` : ''
   const data = await apiFetch(`/api/promotions?limit=50${storeParam}`)
   return data.promotions ?? []
 }
 
-// Health check — confirm API is reachable
+export async function getStores(): Promise<StoreInfo[]> {
+  const data = await apiFetch('/api/stores')
+  return data.stores ?? []
+}
+
+export async function browseStore(
+  storeName: string,
+  query?: string,
+  page = 1
+): Promise<BrowseResult> {
+  const qParam = query ? `&q=${encodeURIComponent(query)}` : ''
+  return apiFetch(`/api/browse?store=${encodeURIComponent(storeName)}&page=${page}${qParam}`)
+}
+
 export async function checkApiHealth(): Promise<{ ok: boolean; total_products: number }> {
   try {
     const data = await apiFetch('/api/health')

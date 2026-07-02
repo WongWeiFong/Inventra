@@ -71,9 +71,26 @@ export default function ShoppingScreen() {
         {(item.quantity > 1 || item.unit) && (
           <Text style={s.itemMeta}>{item.quantity}{item.unit ? ' ' + item.unit : ''}</Text>
         )}
-        {item.is_auto_generated && (
-          <Text style={s.autoBadge}>Auto-generated</Text>
-        )}
+
+        {/* Source info row — store + date added */}
+        <View style={s.sourceRow}>
+          {item.added_from === 'price_tab' && item.source_store_chain ? (
+            <View style={s.sourceBadge}>
+              <Text style={s.sourceBadgeText}>
+                🏪 {item.source_store_chain}
+                {item.source_price ? `  ·  RM ${item.source_price.toFixed(2)}` : ''}
+              </Text>
+            </View>
+          ) : item.added_from === 'auto_generated' ? (
+            <View style={[s.sourceBadge, s.sourceBadgeAuto]}>
+              <Text style={[s.sourceBadgeText, s.sourceBadgeTextAuto]}>⚡ Auto-generated</Text>
+            </View>
+          ) : null}
+          <Text style={s.dateAdded}>
+            {new Date(item.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </Text>
+        </View>
+
         {!item.is_checked && <PriceTag itemName={item.item_name} />}
       </View>
 
@@ -88,9 +105,6 @@ export default function ShoppingScreen() {
       <View style={s.header}>
         <Text style={s.title}>Shopping List</Text>
         <View style={s.headerActions}>
-          <TouchableOpacity style={s.compareBtn} onPress={() => nav.navigate('PriceCompare', {})}>
-            <Text style={s.compareBtnText}>💰 Prices</Text>
-          </TouchableOpacity>
           {checked.length > 0 && (
             <TouchableOpacity onPress={handleClearChecked} style={s.clearBtn}>
               <Text style={s.clearBtnText}>Clear</Text>
@@ -190,4 +204,12 @@ const s = StyleSheet.create({
   },
   deleteBtn: { padding: 6 },
   deleteX: { fontSize: 14, color: '#CCC' },
+  sourceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5, flexWrap: 'wrap' },
+  sourceBadge: {
+    backgroundColor: '#EEEDFE', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6,
+  },
+  sourceBadgeAuto: { backgroundColor: '#EAF3DE' },
+  sourceBadgeText: { fontSize: 10.5, color: '#4A42B0', fontWeight: '500' },
+  sourceBadgeTextAuto: { color: '#27500A' },
+  dateAdded: { fontSize: 10.5, color: '#BBB' },
 })
